@@ -1,0 +1,161 @@
+use std::path::PathBuf;
+
+extern crate clap;
+use clap::error::ErrorKind;
+use clap::{CommandFactory, Parser};
+
+extern crate chrono;
+use chrono::{DateTime, Datelike, FixedOffset, Utc};
+
+mod session;
+
+/// app cli arg config
+#[derive(Parser)]
+struct Args {
+    /// the session cookie directly
+    #[arg(group = "session", short, long)]
+    session_cookie: Option<String>,
+    /// a file containing the session cookie
+    #[arg(group = "session", short, long)]
+    session_file: Option<PathBuf>,
+    /// the location of the firefox dotfiles (defaults to ~/.mozilla/firefox)
+    // because of the mutual exclusivity with the other session args, we'll handle the default in Config::make
+    #[arg(group = "session", short, long)]
+    firefox_folder: Option<PathBuf>,
+
+    /// the day to get the input for
+    /// if this isn't given, the default is the current day if UTC-5 (AOC timezone) is in december otherwise december 1st
+    #[arg(value_parser = clap::value_parser!(u8).range(1..=31), short, long)]
+    day: Option<u8>,
+    /// the year to get the input for
+    /// if this isn't given, the default is the current year if UTC-5 (AOC timezone) is in December otherwise the previous year
+    /// if you're using this in the year 65,536 or later, this will fail. Send me an email and I'll fix it right away.
+    #[arg(value_parser = clap::value_parser!(u16).range(2015..), short, long)]
+    year: Option<u16>, // we'll validate this as a year that isn't in the future in the make function
+
+    /// the problem part to get the input for
+    /// if no part is given, it defaults to 1
+    #[arg(default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..=2), short, long)]
+    part: u8,
+
+    /// file to save the input.txt data to
+    /// if no output file is provided, the data will be piped to stdout
+    #[arg(short, long)]
+    output: Option<PathBuf>,
+}
+
+/// configuration options for the app created based on cli args
+pub struct Config {
+    session_cfg: SessionConfig,
+    output_cfg: OutputConfig,
+    day: u8,
+    year: u16,
+    part: u8,
+}
+
+/// keep track of how the application will get the session cookie, inferred from the cli args
+enum SessionConfig {
+    Direct(String),
+    File(PathBuf),
+    Firefox(PathBuf),
+}
+
+/// keep track of how the application will output the data received
+enum OutputConfig {
+    File(PathBuf),
+    Stdout,
+}
+
+/// error that occured while making the config (invalid input that we couldn't verify in the parser)
+pub enum ConfigError {}
+/// construct app config from arguments
+impl Config {
+    pub fn make() -> Self {
+        let args = Args::parse();
+
+        // how will we get the session cookie?
+        let session_cfg = if let Some(session_string) = args.session_cookie {
+            // the user passed it directly
+            SessionConfig::Direct(session_string.clone())
+        } else if let Some(session_file) = args.session_file {
+            // the user stored it in a file
+            SessionConfig::File(session_file.clone())
+        } else if let Some(firefox_folder) = args.firefox_folder {
+            // the user wants to grab it from firefox and provided the config folder
+            SessionConfig::Firefox(firefox_folder.clone())
+        } else {
+            // we default to grabbing it from where we assume the firefox config folder is
+            SessionConfig::Firefox(PathBuf::from("~/.mozilla/firefox"))
+        };
+
+        // where will we store the output of the request if we get a 200 response
+        let output_cfg = if let Some(out_file) = args.output {
+            OutputConfig::File(out_file)
+        } else {
+            OutputConfig::Stdout
+        };
+
+        // time sensitive config
+        let dt = get_aoc_time();
+
+        // figure out the day
+        let day = if let Some(arg_day) = args.day {
+            arg_day
+        } else if dt.month() == 12 {
+            dt.day() as u8
+        } else {
+            1
+        };
+
+        // figure out the year
+        let year = if let Some(arg_year) = args.year {
+            if arg_year <= dt.year() as u16 {
+                arg_year
+            // custom clap validation for a user-provided invalid year
+            } else {
+                let mut cmd = Args::command();
+                cmd.error(
+                    ErrorKind::ArgumentConflict,
+                    "The year provided is in the future for UTC-5",
+                )
+                .exit();
+            }
+        } else {
+            dt.year() as u16
+        };
+
+        let part = args.part;
+
+        Config {
+            session_cfg,
+            output_cfg,
+            day,
+            year,
+            part,
+        }
+    }
+}
+
+/// return a DateTime struct representing the current time for AOC
+fn get_aoc_time() -> DateTime<Utc> {
+    // seconds in an hour
+    const HOUR: i32 = 3600;
+
+    // aoc time is UTC-5
+    let utc_now = Utc::now();
+    let offset = FixedOffset::east_opt(-5 * HOUR).unwrap();
+
+    utc_now + offset
+}
+
+pub enum RunError {}
+
+pub fn run(cfg: Config) -> Result<(), RunError> {
+    // figure out the session cookie
+    let session = match cfg.session_cfg {
+        SessionConfig::Direct(session_string) => session_string,
+        SessionConfig::File(file) => session::from_file(file)?,
+        SessionConfig::Firefox(folder) => session::from_firefox(folder)?,
+    };
+    todo!()
+}
