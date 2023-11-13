@@ -1,3 +1,5 @@
+use std::fs::File;
+use std::io::{self, Write};
 use std::path::PathBuf;
 
 extern crate clap;
@@ -7,7 +9,14 @@ use clap::{CommandFactory, Parser};
 extern crate chrono;
 use chrono::{DateTime, Datelike, FixedOffset, Utc};
 
+extern crate thiserror;
+use thiserror::Error;
+
 mod session;
+use session::SessionError;
+
+mod request;
+use request::RequestError;
 
 /// app cli arg config
 #[derive(Parser)]
@@ -66,8 +75,6 @@ enum OutputConfig {
     Stdout,
 }
 
-/// error that occured while making the config (invalid input that we couldn't verify in the parser)
-pub enum ConfigError {}
 /// construct app config from arguments
 impl Config {
     pub fn make() -> Self {
@@ -148,14 +155,43 @@ fn get_aoc_time() -> DateTime<Utc> {
     utc_now + offset
 }
 
-pub enum RunError {}
+/// an error encountered while running the application
+#[derive(Error, Debug)]
+pub enum RunError {
+    #[error("error retrieving session cookie")]
+    SessionError(#[from] SessionError),
+    #[error("error occurred while requesting input from adventofcode.com")]
+    RequestError(#[from] RequestError),
+    #[error("error occured while attempting to write to stdout")]
+    StdoutError(io::Error),
+    #[error("error occured while attempting to create file {0}")]
+    FileCreationError(PathBuf, io::Error),
+    #[error("error occured while attempting to write to file {0}")]
+    FileWriteError(PathBuf, io::Error),
+}
 
+/// run the application according to the provided config
 pub fn run(cfg: Config) -> Result<(), RunError> {
     // figure out the session cookie
-    let session = match cfg.session_cfg {
+    let session_cookie = match cfg.session_cfg {
         SessionConfig::Direct(session_string) => session_string,
         SessionConfig::File(file) => session::from_file(file)?,
         SessionConfig::Firefox(folder) => session::from_firefox(folder)?,
     };
-    todo!()
+
+    let recv = request::request_input(cfg.year, cfg.day, cfg.part, session_cookie)?;
+
+    // write to output as determined by the config
+    match cfg.output_cfg {
+        OutputConfig::Stdout => {
+            io::Stdout::write_all(recv).map_err(|e| RunError::StdoutError(e))?;
+        }
+        OutputConfig::File(file) => {
+            let mut out = File::create(file).map_err(|e| RunError::FileCreationError(file, e))?;
+            out.write_all(recv)
+                .map_err(|e| RunError::FileWriteError(file, e))?;
+        }
+    }
+
+    Ok(())
 }
