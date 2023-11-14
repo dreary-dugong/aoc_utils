@@ -42,11 +42,6 @@ struct Args {
     #[arg(value_parser = clap::value_parser!(u16).range(2015..), short, long)]
     year: Option<u16>, // we'll validate this as a year that isn't in the future in the make function
 
-    /// the problem part to get the input for
-    /// if no part is given, it defaults to 1
-    #[arg(default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..=2), short, long)]
-    part: u8,
-
     /// file to save the input.txt data to
     /// if no output file is provided, the data will be piped to stdout
     #[arg(short, long)]
@@ -59,7 +54,6 @@ pub struct Config {
     output_cfg: OutputConfig,
     day: u8,
     year: u16,
-    part: u8,
 }
 
 /// keep track of how the application will get the session cookie, inferred from the cli args
@@ -131,14 +125,11 @@ impl Config {
             dt.year() as u16
         };
 
-        let part = args.part;
-
         Config {
             session_cfg,
             output_cfg,
             day,
             year,
-            part,
         }
     }
 }
@@ -179,7 +170,7 @@ pub fn run(cfg: Config) -> Result<(), RunError> {
         SessionConfig::Firefox(folder) => session::from_firefox(folder)?,
     };
 
-    let recv = request::request_input(cfg.year, cfg.day, cfg.part, &session_cookie)?;
+    let recv = request::request_input(cfg.year, cfg.day, &session_cookie)?;
 
     // write to output as determined by the config
     match cfg.output_cfg {
