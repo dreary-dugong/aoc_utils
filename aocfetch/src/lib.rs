@@ -179,17 +179,20 @@ pub fn run(cfg: Config) -> Result<(), RunError> {
         SessionConfig::Firefox(folder) => session::from_firefox(folder)?,
     };
 
-    let recv = request::request_input(cfg.year, cfg.day, cfg.part, session_cookie)?;
+    let recv = request::request_input(cfg.year, cfg.day, cfg.part, &session_cookie)?;
 
     // write to output as determined by the config
     match cfg.output_cfg {
         OutputConfig::Stdout => {
-            io::Stdout::write_all(recv).map_err(|e| RunError::StdoutError(e))?;
+            io::stdout()
+                .write_all(recv.as_bytes())
+                .map_err(|e| RunError::StdoutError(e))?;
         }
         OutputConfig::File(file) => {
-            let mut out = File::create(file).map_err(|e| RunError::FileCreationError(file, e))?;
-            out.write_all(recv)
-                .map_err(|e| RunError::FileWriteError(file, e))?;
+            let mut out =
+                File::create(&file).map_err(|e| RunError::FileCreationError(file.clone(), e))?;
+            out.write_all(recv.as_bytes())
+                .map_err(|e| RunError::FileWriteError(file.clone(), e))?;
         }
     }
 
