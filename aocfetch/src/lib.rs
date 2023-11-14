@@ -20,8 +20,13 @@ use session::SessionError;
 mod request;
 use request::RequestError;
 
-/// app cli arg config
 #[derive(Parser)]
+#[command(name = "aocfetch")]
+#[command(author = "Daniel Gysi <danielgysi@protonmail.com>")]
+#[command(version = "1.0")]
+#[command(
+    about = "A command line utility to download puzzle inputs for Advent of Code <https://adventofcode.com>"
+)]
 struct Args {
     /// your adventofcode.com session cookie
     #[arg(group = "session", short, long)]
