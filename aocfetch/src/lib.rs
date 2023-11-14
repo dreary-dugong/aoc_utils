@@ -23,14 +23,14 @@ use request::RequestError;
 struct Args {
     /// the session cookie directly
     #[arg(group = "session", short, long)]
-    session_cookie: Option<String>,
+    cookie: Option<String>,
     /// a file containing the session cookie
     #[arg(group = "session", short, long)]
-    session_file: Option<PathBuf>,
+    file: Option<PathBuf>,
     /// the location of the firefox dotfiles (defaults to ~/.mozilla/firefox)
     // because of the mutual exclusivity with the other session args, we'll handle the default in Config::make
     #[arg(group = "session", short, long)]
-    firefox_folder: Option<PathBuf>,
+    browser_folder: Option<PathBuf>,
 
     /// the day to get the input for
     /// if this isn't given, the default is the current day if UTC-5 (AOC timezone) is in december otherwise december 1st
@@ -75,13 +75,13 @@ impl Config {
         let args = Args::parse();
 
         // how will we get the session cookie?
-        let session_cfg = if let Some(session_string) = args.session_cookie {
+        let session_cfg = if let Some(session_string) = args.cookie {
             // the user passed it directly
             SessionConfig::Direct(session_string.clone())
-        } else if let Some(session_file) = args.session_file {
+        } else if let Some(session_file) = args.file {
             // the user stored it in a file
             SessionConfig::File(session_file.clone())
-        } else if let Some(firefox_folder) = args.firefox_folder {
+        } else if let Some(firefox_folder) = args.browser_folder {
             // the user wants to grab it from firefox and provided the config folder
             SessionConfig::Firefox(firefox_folder.clone())
         } else {
