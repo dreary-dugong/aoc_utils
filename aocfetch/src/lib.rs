@@ -21,29 +21,29 @@ use request::RequestError;
 /// app cli arg config
 #[derive(Parser)]
 struct Args {
-    /// the session cookie directly
+    /// your adventofcode.com session cookie
     #[arg(group = "session", short, long)]
     cookie: Option<String>,
-    /// a file containing the session cookie
+    /// a file containing your adventofcode.com session cookie
     #[arg(group = "session", short, long)]
     file: Option<PathBuf>,
-    /// the location of the firefox dotfiles (defaults to ~/.mozilla/firefox)
+    /// the location of your firefox dotfiles (defaults to ~/.mozilla/firefox)
     // because of the mutual exclusivity with the other session args, we'll handle the default in Config::make
     #[arg(group = "session", short, long)]
     browser_folder: Option<PathBuf>,
 
-    /// the day to get the input for
-    /// if this isn't given, the default is the current day if UTC-5 (AOC timezone) is in december otherwise december 1st
+    /// the day to download the input for
+    /// (defaults to current day if UTC-5 is December, otherwise 1)
     #[arg(value_parser = clap::value_parser!(u8).range(1..=31), short, long)]
     day: Option<u8>,
-    /// the year to get the input for
-    /// if this isn't given, the default is the current year if UTC-5 (AOC timezone) is in December otherwise the previous year
-    /// if you're using this in the year 65,536 or later, this will fail. Send me an email and I'll fix it right away.
+    /// the year to download the input for
+    /// (defaults to current year if UTC-5 is December, otherwise the previous year)
+    /// NOTE: this will break in the year 65,536. File a github issue if you encounter this.
     #[arg(value_parser = clap::value_parser!(u16).range(2015..), short, long)]
     year: Option<u16>, // we'll validate this as a year that isn't in the future in the make function
 
-    /// file to save the input.txt data to
-    /// if no output file is provided, the data will be piped to stdout
+    /// file name to save the problem's input
+    /// (defaults to stdout)
     #[arg(short, long)]
     output: Option<PathBuf>,
 }
@@ -121,8 +121,10 @@ impl Config {
                 )
                 .exit();
             }
-        } else {
+        } else if dt.month() == 12 {
             dt.year() as u16
+        } else {
+            dt.year() as u16 - 1
         };
 
         Config {
