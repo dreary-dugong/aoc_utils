@@ -14,21 +14,21 @@ use rusqlite::Connection;
 /// error encountered while retreiving session cookie
 #[derive(Error, Debug)]
 pub enum SessionError {
-    #[error("unable to read session cookie from file {0}")]
+    #[error("unable to read session cookie from {0}: {1}")]
     FileReadError(PathBuf, io::Error),
-    #[error("unable to load Firefox's profile.ini file")]
+    #[error("unable to load Firefox's profile.ini file: {0}")]
     IniLoadError(ini::Error),
     #[error("unable to find the correct profile in Firefox's profile.ini file")]
     IniMissingProfile,
     #[error("profile in Firefox's profile.ini was found but is missing the Path attribute")]
     ProfileMissingPath,
-    #[error("unable to open cookies database")]
+    #[error("unable to open cookies database: {0}")]
     CantOpenDb(rusqlite::Error),
-    #[error("error preparing statement for cookies database")]
+    #[error("error preparing statement for cookies database: {0}")]
     StatementPrepError(rusqlite::Error),
-    #[error("error executing query on cookies database")]
+    #[error("error executing query on cookies database: {0}")]
     QueryError(rusqlite::Error),
-    #[error("error getting next row of query results from cookies database")]
+    #[error("error getting next row of query results from cookies database: {0}")]
     RowsError(rusqlite::Error),
     #[error("can't find adventofcode.com session cookie in firefox profile's cookie database")]
     MissingCookie,

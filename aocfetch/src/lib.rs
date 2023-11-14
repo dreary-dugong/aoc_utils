@@ -151,15 +151,15 @@ fn get_aoc_time() -> DateTime<Utc> {
 /// an error encountered while running the application
 #[derive(Error, Debug)]
 pub enum RunError {
-    #[error("error retrieving session cookie")]
+    #[error("error retrieving session cookie: {0}")]
     SessionError(#[from] SessionError),
-    #[error("error occurred while requesting input from adventofcode.com")]
+    #[error("error occurred while requesting input from adventofcode.com: {0}")]
     RequestError(#[from] RequestError),
-    #[error("error occured while attempting to write to stdout")]
+    #[error("error occured while attempting to write to stdout: {0}")]
     StdoutError(io::Error),
-    #[error("error occured while attempting to create file {0}")]
+    #[error("error occured while attempting to create {0}: {1}")]
     FileCreationError(PathBuf, io::Error),
-    #[error("error occured while attempting to write to file {0}")]
+    #[error("error occured while attempting to write to {0}: {1}")]
     FileWriteError(PathBuf, io::Error),
 }
 

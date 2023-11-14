@@ -8,7 +8,7 @@ use reqwest::StatusCode;
 /// an error encountered while making the request for input
 #[derive(Error, Debug)]
 pub enum RequestError {
-    #[error("unable to complete request to {0}")]
+    #[error("unable to complete request to {0}: {1}")]
     RequestFailed(String, reqwest::Error),
     #[error("bad response from server with status code {0}")]
     BadResponse(u16),
