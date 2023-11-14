@@ -12,6 +12,8 @@ use chrono::{DateTime, Datelike, FixedOffset, Utc};
 extern crate thiserror;
 use thiserror::Error;
 
+extern crate dirs;
+
 mod session;
 use session::SessionError;
 
@@ -86,7 +88,9 @@ impl Config {
             SessionConfig::Firefox(firefox_folder.clone())
         } else {
             // we default to grabbing it from where we assume the firefox config folder is
-            SessionConfig::Firefox(PathBuf::from("~/.mozilla/firefox"))
+            let mut firefox_folder = dirs::home_dir().unwrap();
+            firefox_folder.push(".mozilla/firefox");
+            SessionConfig::Firefox(firefox_folder)
         };
 
         // where will we store the output of the request if we get a 200 response
