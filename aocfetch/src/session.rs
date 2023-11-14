@@ -36,7 +36,7 @@ pub enum SessionError {
 
 /// pull session cookie from file containing only that
 pub fn from_file(file: PathBuf) -> Result<String, SessionError> {
-    Ok(fs::read_to_string(file)
+    Ok(fs::read_to_string(&file)
         .map_err(|e| SessionError::FileReadError(file, e))?
         .trim()
         .to_string())
@@ -50,7 +50,7 @@ pub fn from_firefox(folder: PathBuf) -> Result<String, SessionError> {
     let mut cookie_db_path = profile_path;
     cookie_db_path.push("cookies.sqlite");
 
-    Ok(extract_cookie(cookie_db_path)?)
+    extract_cookie(cookie_db_path)
 }
 
 /// given the location of the firefox dotfiles, get the full path to the profile from which we'll extract the cookie
@@ -61,7 +61,7 @@ fn get_profile_path(firefox_path: PathBuf) -> Result<PathBuf, SessionError> {
     let mut profiles_ini_path = firefox_path.clone();
     profiles_ini_path.push("profiles.ini");
     let profile_data =
-        Ini::load_from_file(profiles_ini_path).map_err(|e| SessionError::IniLoadError(e))?;
+        Ini::load_from_file(profiles_ini_path).map_err(SessionError::IniLoadError)?;
 
     // iterate over every section and check if it has a name and if so whether that's the name of the profile we want and if so take the path
     let mut profile_folder = None;
@@ -88,17 +88,17 @@ fn get_profile_path(firefox_path: PathBuf) -> Result<PathBuf, SessionError> {
 fn extract_cookie(dbpath: PathBuf) -> Result<String, SessionError> {
     const QUERY: &str =
         "SELECT value FROM moz_cookies WHERE host LIKE '%.adventofcode.com' AND name='session' LIMIT 1;";
-    let con = Connection::open(dbpath).map_err(|e| SessionError::CantOpenDb(e))?;
+    let con = Connection::open(dbpath).map_err(SessionError::CantOpenDb)?;
 
     let mut stmt = con
         .prepare(QUERY)
-        .map_err(|e| SessionError::StatementPrepError(e))?;
+        .map_err(SessionError::StatementPrepError)?;
 
     let cookie: String = stmt
         .query([])
-        .map_err(|e| SessionError::QueryError(e))?
+        .map_err(SessionError::QueryError)?
         .next()
-        .map_err(|e| SessionError::RowsError(e))?
+        .map_err(SessionError::RowsError)?
         .ok_or(SessionError::MissingCookie)?
         .get_unwrap(0);
 

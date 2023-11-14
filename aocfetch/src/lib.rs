@@ -177,7 +177,7 @@ pub fn run(cfg: Config) -> Result<(), RunError> {
         OutputConfig::Stdout => {
             io::stdout()
                 .write_all(recv.as_bytes())
-                .map_err(|e| RunError::StdoutError(e))?;
+                .map_err(RunError::StdoutError)?;
         }
         OutputConfig::File(file) => {
             let mut out =
