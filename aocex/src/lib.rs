@@ -155,14 +155,15 @@ fn get_html(year: u16, day: u8) -> Result<String, RunError> {
 }
 
 fn retrieve_example(html: String) -> Result<String, RunError> {
-    const PATTERN: &str = r"<code>.*</code>";
+    const PATTERN: &str = r"<pre><code>[^<]*<\/code><\/pre>";
     let reg = Regex::new(PATTERN).unwrap();
     if let Some(m) = reg.find(&html) {
         Ok(m.as_str()
-            .strip_prefix("<code>")
+            .strip_prefix("<pre><code>")
             .unwrap()
-            .strip_suffix("</code>")
+            .strip_suffix("</code></pre>")
             .unwrap()
+            .trim()
             .to_string())
     } else {
         Err(RunError::RegexFailed)
