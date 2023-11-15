@@ -5,7 +5,7 @@ This project was heavily inspired by [GreenLightning's aocdl project](https://gi
 Notably, aocfetch lacks the wait functionality of aocdl but adds the ability to grab the user's session cookie directly from their firefox profile
 
 ## Warnings
-From adventofcode.com (when requesting with `curl`):
+From adventofcode.com (in a comment in the html):
 
 >Please be careful with automated requests; I'm not a massive company, and I can
 >only take so much traffic.  Please be considerate so that everyone gets to play.
