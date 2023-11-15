@@ -1,3 +1,4 @@
+use aocex::Config;
 use std::process;
 fn main() {
     if let Err(e) = run(Config::make()) {

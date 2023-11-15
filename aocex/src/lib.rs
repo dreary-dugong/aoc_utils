@@ -1,3 +1,6 @@
+use std::fs;
+use std::fs::File;
+use std::io::{self, Write};
 use std::path::PathBuf;
 
 extern crate clap;
@@ -6,6 +9,16 @@ use clap::{CommandFactory, Parser};
 
 extern crate chrono;
 use chrono::{DateTime, Datelike, FixedOffset, Utc};
+
+extern crate thiserror;
+use thiserror::Error;
+
+extern crate reqwest;
+use reqwest::blocking;
+use reqwest::StatusCode;
+
+extern crate regex;
+use regex::Regex;
 
 #[derive(Parser)]
 struct Args {
@@ -99,4 +112,60 @@ fn get_aoc_dt() -> DateTime<Utc> {
     let utc_now = Utc::now();
 
     utc_now + offset
+}
+
+#[derive(Error, Debug)]
+pub enum RunError {
+    #[error("request failed: {0}")]
+    RequestFailed(reqwest::Error),
+    #[error("bad response from AOC: code {0}")]
+    BadRequest(u16),
+    #[error("failed to find example on page")]
+    RegexFailed,
+    #[error("failed to write example to {0}: {1}")]
+    FileWriteFailed(PathBuf, io::Error),
+    #[error("failed to write example to stdout: {0}")]
+    StdoutWriteFailed(io::Error),
+}
+pub fn run(cfg: Config) -> Result<(), RunError> {
+    let html = get_html(cfg.year, cfg.day)?;
+    let example = retrieve_example(html)?;
+
+    match cfg.out {
+        OutputCfg::File(f) => {
+            fs::write(&f, example).map_err(|e| RunError::FileWriteFailed(f, e))?;
+        }
+        OutputCfg::Stdout => {
+            io::stdout()
+                .write_all(example.as_bytes())
+                .map_err(RunError::StdoutWriteFailed)?;
+        }
+    };
+
+    Ok(())
+}
+
+fn get_html(year: u16, day: u8) -> Result<String, RunError> {
+    let url = format!("https://adventofcode.com/{year}/day/{day}");
+    let response = blocking::get(url).map_err(RunError::RequestFailed)?;
+
+    match response.status() {
+        StatusCode::OK => Ok(response.text().unwrap()),
+        other => Err(RunError::BadRequest(other.as_u16())),
+    }
+}
+
+fn retrieve_example(html: String) -> Result<String, RunError> {
+    const PATTERN: &str = r"<code>.*</code>";
+    let reg = Regex::new(PATTERN).unwrap();
+    if let Some(m) = reg.find(&html) {
+        Ok(m.as_str()
+            .strip_prefix("<code>")
+            .unwrap()
+            .strip_suffix("</code>")
+            .unwrap()
+            .to_string())
+    } else {
+        Err(RunError::RegexFailed)
+    }
 }
