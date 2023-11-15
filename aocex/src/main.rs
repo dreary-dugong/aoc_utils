@@ -1,3 +1,9 @@
+use std::process;
 fn main() {
-    println!("Hello, world!");
+    if let Err(e) = run(Config::make()) {
+        eprintln!("{}", e);
+        process::exit(1);
+    } else {
+        process::exit(0);
+    }
 }
