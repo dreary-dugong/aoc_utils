@@ -1,4 +1,4 @@
-# AOCEX
+# aocex
 A simple rust cli program that attempts to download the first example for a given [Advent of Code](https://adventofcode.com) puzzle
 
 # Warnings

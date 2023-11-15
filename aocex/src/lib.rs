@@ -113,6 +113,7 @@ fn get_aoc_dt() -> DateTime<Utc> {
     utc_now + offset
 }
 
+/// error encountered while running the program
 #[derive(Error, Debug)]
 pub enum RunError {
     #[error("request failed: {0}")]
@@ -126,6 +127,8 @@ pub enum RunError {
     #[error("failed to write example to stdout: {0}")]
     StdoutWriteFailed(io::Error),
 }
+
+/// run the application according to the provided config
 pub fn run(cfg: Config) -> Result<(), RunError> {
     let html = get_html(cfg.year, cfg.day)?;
     let example = retrieve_example(html)?;
@@ -144,6 +147,7 @@ pub fn run(cfg: Config) -> Result<(), RunError> {
     Ok(())
 }
 
+/// given the day and year, retrieve the html for that day's AOC puzzle
 fn get_html(year: u16, day: u8) -> Result<String, RunError> {
     let url = format!("https://adventofcode.com/{year}/day/{day}");
     let response = blocking::get(url).map_err(RunError::RequestFailed)?;
@@ -154,7 +158,10 @@ fn get_html(year: u16, day: u8) -> Result<String, RunError> {
     }
 }
 
+/// given the page's html, retrive the first code example (text in the first preformatted code block)
 fn retrieve_example(html: String) -> Result<String, RunError> {
+    // now I have two problems....................
+    // I tried xml-rs and was pretty underwhelmed with the result. A regex was easier.
     const PATTERN: &str = r"<pre><code>[^<]*<\/code><\/pre>";
     let reg = Regex::new(PATTERN).unwrap();
     if let Some(m) = reg.find(&html) {
