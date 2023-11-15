@@ -108,15 +108,6 @@ impl Config {
         // time sensitive config
         let dt = get_aoc_time();
 
-        // figure out the day
-        let day = if let Some(arg_day) = args.day {
-            arg_day
-        } else if dt.month() == 12 {
-            dt.day() as u8
-        } else {
-            1
-        };
-
         // figure out the year
         let year = if let Some(arg_year) = args.year {
             if arg_year <= dt.year() as u16 {
@@ -125,7 +116,7 @@ impl Config {
             } else {
                 let mut cmd = Args::command();
                 cmd.error(
-                    ErrorKind::ArgumentConflict,
+                    ErrorKind::InvalidValue,
                     "The year provided is in the future for UTC-5",
                 )
                 .exit();
@@ -134,6 +125,25 @@ impl Config {
             dt.year() as u16
         } else {
             dt.year() as u16 - 1
+        };
+
+        // figure out the day
+        let day = if let Some(arg_day) = args.day {
+            // custom clap validation for a user-provided invalid year
+            if year != dt.year() as u16 || arg_day < dt.day() as u8 {
+                arg_day
+            } else {
+                let mut cmd = Args::command();
+                cmd.error(
+                    ErrorKind::InvalidValue,
+                    "the day provided is in the future for UTC-5",
+                )
+                .exit()
+            }
+        } else if dt.month() == 12 {
+            dt.day() as u8
+        } else {
+            1
         };
 
         Config {
