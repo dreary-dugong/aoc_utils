@@ -1,4 +1,3 @@
-use std::fs::File;
 use std::io::{self, Write};
 use std::path::PathBuf;
 
@@ -14,20 +13,24 @@ use thiserror::Error;
 
 extern crate dirs;
 
-pub mod session;
-use session::SessionError;
+extern crate aocfetch;
+use aocfetch::session::{self, SessionError};
 
 mod request;
 use request::RequestError;
 
 #[derive(Parser)]
-#[command(name = "aocfetch")]
+#[command(name = "aocsub")]
 #[command(author = "Daniel Gysi <danielgysi@protonmail.com>")]
 #[command(version = "1.0")]
 #[command(
-    about = "A command line utility to download puzzle inputs for Advent of Code <https://adventofcode.com>"
+    about = "A command line utility to submit answers for Advent of Code <https://adventofcode.com> puzzles"
 )]
 struct Args {
+    /// the answer to submit (defaults to stdin)
+    #[arg(short, long)]
+    answer: Option<String>,
+
     /// your adventofcode.com session cookie
     #[arg(group = "session", short, long)]
     cookie: Option<String>,
@@ -39,28 +42,28 @@ struct Args {
     #[arg(group = "session", short, long)]
     browser_folder: Option<PathBuf>,
 
-    /// the day to download the input for
+    /// the day to submit the answer for
     /// (defaults to current day if UTC-5 is December, otherwise 1)
     #[arg(value_parser = clap::value_parser!(u8).range(1..=31), short, long)]
     day: Option<u8>,
-    /// the year to download the input for
+    /// the year to submit the answer for
     /// (defaults to current year if UTC-5 is December, otherwise the previous year)
     /// NOTE: this will break in the year 65,536. File a github issue if you encounter this.
     #[arg(value_parser = clap::value_parser!(u16).range(2015..), short, long)]
     year: Option<u16>, // we'll validate this as a year that isn't in the future in the make function
 
-    /// file name to save the problem's input
-    /// (defaults to stdout)
-    #[arg(short, long)]
-    output: Option<PathBuf>,
+    /// the level to submit the answer for (1 or 2, defaults to 1)
+    #[arg(default_value_t = 1, value_parser = clap::value_parser!(u8).range(1..=2), short, long)]
+    level: u8,
 }
 
 /// configuration options for the app created based on cli args
 pub struct Config {
     session_cfg: SessionConfig,
-    output_cfg: OutputConfig,
     day: u8,
     year: u16,
+    level: u8,
+    answer: String,
 }
 
 /// keep track of how the application will get the session cookie, inferred from the cli args
@@ -70,16 +73,26 @@ enum SessionConfig {
     Firefox(PathBuf),
 }
 
-/// keep track of how the application will output the data received
-enum OutputConfig {
-    File(PathBuf),
-    Stdout,
-}
-
 /// construct app config from arguments
 impl Config {
     pub fn make() -> Self {
         let args = Args::parse();
+
+        // parse and store the answer
+        let answer = if let Some(ans) = args.answer {
+            ans
+        } else {
+            let mut buf = String::new();
+            io::stdin().read_line(&mut buf).unwrap_or_else(|_| {
+                let mut cmd = Args::command();
+                cmd.error(
+                    ErrorKind::InvalidValue,
+                    "no answer provided and it could not be parsed from stdin",
+                )
+                .exit();
+            });
+            buf
+        };
 
         // how will we get the session cookie?
         let session_cfg = if let Some(session_string) = args.cookie {
@@ -98,13 +111,6 @@ impl Config {
             SessionConfig::Firefox(firefox_folder)
         };
 
-        // where will we store the output of the request if we get a 200 response
-        let output_cfg = if let Some(out_file) = args.output {
-            OutputConfig::File(out_file)
-        } else {
-            OutputConfig::Stdout
-        };
-
         // time sensitive config
         let dt = get_aoc_time();
 
@@ -117,7 +123,7 @@ impl Config {
                 let mut cmd = Args::command();
                 cmd.error(
                     ErrorKind::InvalidValue,
-                    "The year provided is in the future for UTC-5",
+                    "the year provided is in the future for UTC-5",
                 )
                 .exit();
             }
@@ -146,11 +152,14 @@ impl Config {
             1
         };
 
+        let level = args.level;
+
         Config {
             session_cfg,
-            output_cfg,
             day,
             year,
+            level,
+            answer,
         }
     }
 }
@@ -172,14 +181,10 @@ pub fn get_aoc_time() -> DateTime<Utc> {
 pub enum RunError {
     #[error("error retrieving session cookie: {0}")]
     SessionError(#[from] SessionError),
-    #[error("error occurred while requesting input from adventofcode.com: {0}")]
+    #[error("error occurred while posting answer to adventofcode.com: {0}")]
     RequestError(#[from] RequestError),
     #[error("error occured while attempting to write to stdout: {0}")]
     StdoutError(io::Error),
-    #[error("error occured while attempting to create {0}: {1}")]
-    FileCreationError(PathBuf, io::Error),
-    #[error("error occured while attempting to write to {0}: {1}")]
-    FileWriteError(PathBuf, io::Error),
 }
 
 /// run the application according to the provided config
@@ -191,22 +196,13 @@ pub fn run(cfg: Config) -> Result<(), RunError> {
         SessionConfig::Firefox(folder) => session::from_firefox(folder)?,
     };
 
-    let recv = request::request_input(cfg.year, cfg.day, &session_cookie)?;
+    let mut recv =
+        request::post_answer(cfg.year, cfg.day, cfg.level, &cfg.answer, &session_cookie)?;
+    recv.push('\n');
 
-    // write to output as determined by the config
-    match cfg.output_cfg {
-        OutputConfig::Stdout => {
-            io::stdout()
-                .write_all(recv.as_bytes())
-                .map_err(RunError::StdoutError)?;
-        }
-        OutputConfig::File(file) => {
-            let mut out =
-                File::create(&file).map_err(|e| RunError::FileCreationError(file.clone(), e))?;
-            out.write_all(recv.as_bytes())
-                .map_err(|e| RunError::FileWriteError(file.clone(), e))?;
-        }
-    }
+    io::stdout()
+        .write_all(recv.as_bytes())
+        .map_err(RunError::StdoutError)?;
 
     Ok(())
 }
