@@ -130,7 +130,7 @@ impl Config {
         // figure out the day
         let day = if let Some(arg_day) = args.day {
             // custom clap validation for a user-provided invalid year
-            if year != dt.year() as u16 || arg_day < dt.day() as u8 {
+            if year != dt.year() as u16 || (dt.month() == 12 && arg_day <= dt.day() as u8) {
                 arg_day
             } else {
                 let mut cmd = Args::command();

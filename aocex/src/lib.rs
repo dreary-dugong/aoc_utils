@@ -83,7 +83,9 @@ impl Config {
         // day
         let day = if let Some(arg_day) = args.day {
             // validate inputted day to make sure it's not in the future
-            if year != aoc_dt.year() as u16 || arg_day <= aoc_dt.day() as u8 {
+            if year != aoc_dt.year() as u16
+                || (aoc_dt.month() == 12 && arg_day <= aoc_dt.day() as u8)
+            {
                 arg_day
             } else {
                 let mut cmd = Args::command();
