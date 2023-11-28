@@ -42,8 +42,7 @@ the default day is december 1st. Obviously, you cannot run it with a year that's
 
 
 By default, the program pulls the session cookie for `*.adventofcode.com` from the user's `default-release` firefox profile located in `~/.mozilla/firefox`.
-This may not be preferable for several reasons, not the least of which being that it fails to grab the session cookie if firefox is currently running (you'll receive a "database locked" error). 
-To accomodate this, there are a few options included.
+If this is not preferable e.g. because you use another browser or because you use NixOS, there are other options to supply the cookie.
 
 1. provide the session cookie directly with the `--cookie` flag e.g. `aocsub --cookie xxxxxxxxxxxxxxxxxx` or `aocsub -c xxxxxxxxxxxxxxxxxx`
 2. provide the path to a file that contains the cookie with the `--file` flag e.g. `aocsub --file ~/.mycookie.txt` or `aocsub -f ~/.mycookie.txt`
