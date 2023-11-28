@@ -24,6 +24,10 @@ pub enum SessionError {
     ProfileMissingPath,
     #[error("unable to open cookies database: {0}")]
     CantOpenDb(rusqlite::Error),
+    #[error("unable to copy cookies database: {0}")]
+    CantCopyDb(io::Error),
+    #[error("unable to delete temporary cookies database: {0}")]
+    CantDeleteTempDb(io::Error),
     #[error("error preparing statement for cookies database: {0}")]
     StatementPrepError(rusqlite::Error),
     #[error("error executing query on cookies database: {0}")]
@@ -86,9 +90,17 @@ fn get_profile_path(firefox_path: PathBuf) -> Result<PathBuf, SessionError> {
 
 /// given the path to the cookies database, extract the session cookie if it exists
 fn extract_cookie(dbpath: PathBuf) -> Result<String, SessionError> {
+    const TEMP_FILE: &str = "/tmp/aoc_utils-temp-db.sqlite";
     const QUERY: &str =
         "SELECT value FROM moz_cookies WHERE host LIKE '%.adventofcode.com' AND name='session' LIMIT 1;";
-    let con = Connection::open(dbpath).map_err(SessionError::CantOpenDb)?;
+
+    // copy the database to a new temp file in case it's locked
+    // Ideally we'd check if it's locked first but that's a huge pain in the ass, I've learned.
+    // It goes all the way back to libsqlite3 in C. There's no function for it, you just have to prepare
+    // a statement and check. wtf.
+    let temp_path = PathBuf::from(TEMP_FILE);
+    fs::copy(dbpath, &temp_path).map_err(SessionError::CantCopyDb)?;
+    let con = Connection::open(&temp_path).map_err(SessionError::CantOpenDb)?;
 
     let mut stmt = con
         .prepare(QUERY)
@@ -101,6 +113,8 @@ fn extract_cookie(dbpath: PathBuf) -> Result<String, SessionError> {
         .map_err(SessionError::RowsError)?
         .ok_or(SessionError::MissingCookie)?
         .get_unwrap(0);
+
+    fs::remove_file(temp_path).map_err(SessionError::CantDeleteTempDb)?;
 
     Ok(cookie)
 }
