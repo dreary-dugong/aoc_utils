@@ -23,7 +23,7 @@ use request::RequestError;
 #[derive(Parser)]
 #[command(name = "aocfetch")]
 #[command(author = "Daniel Gysi <danielgysi@protonmail.com>")]
-#[command(version = "1.0")]
+#[command(version = "0.2.0")]
 #[command(
     about = "A command line utility to download puzzle inputs for Advent of Code <https://adventofcode.com>"
 )]
